@@ -1,7 +1,9 @@
+// @/components/ReelsViewer.tsx (Tomar project-er path onujayi)
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Reel } from '@/types/reel';
 import { getReels } from '@/services/reelService';
-import ReelCard from './ReelCard';
+import ReelCard from './ReelCard'; // Nishchit koro ei path thik ache
 
 const ReelsViewer: React.FC = () => {
   const [reels, setReels] = useState<Reel[]>([]);
@@ -9,44 +11,49 @@ const ReelsViewer: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // For touch swipe functionality
   const touchStartY = useRef<number>(0);
-  const SWIPE_THRESHOLD = 50; // Minimum pixels to be considered a swipe
+  const SWIPE_THRESHOLD = 50;
 
   useEffect(() => {
+    console.log("ReelsViewer: useEffect for getReels - MOUNTING or DEPENDENCIES CHANGED. Setting up listener.");
     const unsubscribe = getReels((fetchedReels) => {
-      setReels(fetchedReels);
+      console.log("ReelsViewer: getReels callback triggered. Fetched Reels Array:", fetchedReels);
+      console.log("ReelsViewer: Number of fetched reels:", fetchedReels ? fetchedReels.length : 0);
+      
+      // Ensure fetchedReels is always an array before setting state
+      setReels(Array.isArray(fetchedReels) ? fetchedReels : []);
       setIsLoading(false);
     });
 
+    // Cleanup function
     return () => {
-      // Firebase onValue might not return a direct unsubscribe function in some SDK versions.
-      // If `getReels` provides a specific unsubscribe mechanism, it should be used here.
-      // Assuming the listener is cleaned up appropriately as per the original comment.
+      console.log("ReelsViewer: useEffect for getReels - CLEANUP. Component unmounting or dependencies changed.");
       if (typeof unsubscribe === 'function') {
+        console.log("ReelsViewer: Calling unsubscribe() for getReels listener.");
         unsubscribe();
+      } else {
+        console.warn("ReelsViewer: Unsubscribe was not a function for getReels listener. Value:", unsubscribe);
       }
     };
-  }, []);
+  }, []); // Empty dependency array: runs on mount, cleans up on unmount.
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {
+      console.warn("ReelsViewer: Container ref is not available for event listeners.");
+      return;
+    }
+    console.log("ReelsViewer: useEffect for event listeners - Attaching. CurrentIndex:", currentIndex, "Reels.length:", reels.length);
 
-    // --- Mouse Wheel Scroll ---
     const handleScroll = (e: WheelEvent) => {
       e.preventDefault();
-      
       if (e.deltaY > 0 && currentIndex < reels.length - 1) {
-        // Scroll down
         setCurrentIndex(prev => prev + 1);
       } else if (e.deltaY < 0 && currentIndex > 0) {
-        // Scroll up
         setCurrentIndex(prev => prev - 1);
       }
     };
 
-    // --- Keyboard Navigation ---
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown' && currentIndex < reels.length - 1) {
         setCurrentIndex(prev => prev + 1);
@@ -55,42 +62,34 @@ const ReelsViewer: React.FC = () => {
       }
     };
 
-    // --- Touch Swipe Navigation ---
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY.current = e.touches[0].clientY;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      // Prevent default scrolling behavior while swiping
       e.preventDefault();
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (touchStartY.current === 0) return; // No touch start recorded
-
+      if (touchStartY.current === 0) return;
       const touchEndY = e.changedTouches[0].clientY;
-      const deltaY = touchStartY.current - touchEndY; // Positive for swipe up, negative for swipe down
-
+      const deltaY = touchStartY.current - touchEndY;
       if (deltaY > SWIPE_THRESHOLD && currentIndex < reels.length - 1) {
-        // Swipe up (navigate to next reel)
         setCurrentIndex(prev => prev + 1);
       } else if (deltaY < -SWIPE_THRESHOLD && currentIndex > 0) {
-        // Swipe down (navigate to previous reel)
         setCurrentIndex(prev => prev - 1);
       }
-      
-      touchStartY.current = 0; // Reset for the next touch
+      touchStartY.current = 0;
     };
 
-    // Add event listeners
     container.addEventListener('wheel', handleScroll, { passive: false });
     window.addEventListener('keydown', handleKeyDown);
     container.addEventListener('touchstart', handleTouchStart, { passive: true });
     container.addEventListener('touchmove', handleTouchMove, { passive: false });
     container.addEventListener('touchend', handleTouchEnd);
 
-    // Cleanup event listeners
     return () => {
+      console.log("ReelsViewer: useEffect for event listeners - CLEANUP. Removing event listeners.");
       if (container) {
         container.removeEventListener('wheel', handleScroll);
         window.removeEventListener('keydown', handleKeyDown);
@@ -100,6 +99,8 @@ const ReelsViewer: React.FC = () => {
       }
     };
   }, [currentIndex, reels.length]); // Dependencies for re-binding if index or reels count changes
+
+  console.log(`ReelsViewer: RENDERING. isLoading: ${isLoading}, Reels count: ${reels.length}, CurrentIndex: ${currentIndex}`);
 
   if (isLoading) {
     return (
@@ -112,7 +113,7 @@ const ReelsViewer: React.FC = () => {
     );
   }
 
-  if (reels.length === 0) {
+  if (!isLoading && reels.length === 0) {
     return (
       <div className="h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center text-white">
@@ -141,11 +142,10 @@ const ReelsViewer: React.FC = () => {
         </div>
       ))}
       
-      {/* Navigation indicators */}
       <div className="fixed right-2 top-1/2 transform -translate-y-1/2 flex flex-col gap-2 z-50">
         {reels.map((_, index) => (
           <div
-            key={index}
+            key={`dot-${index}`} // Updated key for clarity
             className={`w-1 h-8 rounded-full transition-all duration-300 ${
               index === currentIndex 
                 ? 'bg-white' 
@@ -155,7 +155,6 @@ const ReelsViewer: React.FC = () => {
         ))}
       </div>
 
-      {/* Instructions */}
       <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center z-40">
         <p className="text-sm opacity-75">
           Swipe, scroll, or use ↑↓ keys to navigate
