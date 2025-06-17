@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Reel } from '@/types/reel';
 import { getReels } from '@/services/reelService';
 import ReelCard from './ReelCard'; // Nishchit koro ei path thik ache
+import { ChevronUp, ChevronDown } from 'lucide-react'; // Button icon er jonno
 
 const ReelsViewer: React.FC = () => {
   const [reels, setReels] = useState<Reel[]>([]);
@@ -14,64 +15,62 @@ const ReelsViewer: React.FC = () => {
   const touchStartY = useRef<number>(0);
   const SWIPE_THRESHOLD = 50;
 
-  // For dynamic height calculation (optional, use if 100vh causes issues on mobile)
-  // const [viewportHeight, setViewportHeight] = useState(0);
-
-  // useEffect(() => {
-  //   if (typeof window !== 'undefined') {
-  //     setViewportHeight(window.innerHeight);
-  //     const handleResize = () => {
-  //       setViewportHeight(window.innerHeight);
-  //     };
-  //     window.addEventListener('resize', handleResize);
-  //     return () => window.removeEventListener('resize', handleResize);
-  //   }
-  // }, []);
-
-
   useEffect(() => {
-    console.log("ReelsViewer: useEffect for getReels - MOUNTING or DEPENDENCIES CHANGED. Setting up listener.");
+    // console.log("ReelsViewer: useEffect for getReels - MOUNTING or DEPENDENCIES CHANGED. Setting up listener.");
     const unsubscribe = getReels((fetchedReels) => {
-      console.log("ReelsViewer: getReels callback triggered. Fetched Reels Array:", fetchedReels);
-      console.log("ReelsViewer: Number of fetched reels:", fetchedReels ? fetchedReels.length : 0);
+      // console.log("ReelsViewer: getReels callback triggered. Fetched Reels Array:", fetchedReels);
+      // console.log("ReelsViewer: Number of fetched reels:", fetchedReels ? fetchedReels.length : 0);
       
       setReels(Array.isArray(fetchedReels) ? fetchedReels : []);
       setIsLoading(false);
     });
 
     return () => {
-      console.log("ReelsViewer: useEffect for getReels - CLEANUP. Component unmounting or dependencies changed.");
+      // console.log("ReelsViewer: useEffect for getReels - CLEANUP. Component unmounting or dependencies changed.");
       if (typeof unsubscribe === 'function') {
-        console.log("ReelsViewer: Calling unsubscribe() for getReels listener.");
+        // console.log("ReelsViewer: Calling unsubscribe() for getReels listener.");
         unsubscribe();
       } else {
-        console.warn("ReelsViewer: Unsubscribe was not a function for getReels listener. Value:", unsubscribe);
+        // console.warn("ReelsViewer: Unsubscribe was not a function for getReels listener. Value:", unsubscribe);
       }
     };
   }, []);
 
+  // --- Navigation Functions ---
+  const goToNextReel = () => {
+    if (currentIndex < reels.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    }
+  };
+
+  const goToPreviousReel = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1);
+    }
+  };
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
-      console.warn("ReelsViewer: Container ref is not available for event listeners.");
+      // console.warn("ReelsViewer: Container ref is not available for event listeners.");
       return;
     }
-    console.log("ReelsViewer: useEffect for event listeners - Attaching. CurrentIndex:", currentIndex, "Reels.length:", reels.length);
+    // console.log("ReelsViewer: useEffect for event listeners - Attaching. CurrentIndex:", currentIndex, "Reels.length:", reels.length);
 
     const handleScroll = (e: WheelEvent) => {
       e.preventDefault();
-      if (e.deltaY > 0 && currentIndex < reels.length - 1) {
-        setCurrentIndex(prev => prev + 1);
-      } else if (e.deltaY < 0 && currentIndex > 0) {
-        setCurrentIndex(prev => prev - 1);
+      if (e.deltaY > 0) { // Scroll Down
+        goToNextReel();
+      } else if (e.deltaY < 0) { // Scroll Up
+        goToPreviousReel();
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown' && currentIndex < reels.length - 1) {
-        setCurrentIndex(prev => prev + 1);
-      } else if (e.key === 'ArrowUp' && currentIndex > 0) {
-        setCurrentIndex(prev => prev - 1);
+      if (e.key === 'ArrowDown') {
+        goToNextReel();
+      } else if (e.key === 'ArrowUp') {
+        goToPreviousReel();
       }
     };
 
@@ -86,11 +85,11 @@ const ReelsViewer: React.FC = () => {
     const handleTouchEnd = (e: TouchEvent) => {
       if (touchStartY.current === 0) return;
       const touchEndY = e.changedTouches[0].clientY;
-      const deltaY = touchStartY.current - touchEndY;
-      if (deltaY > SWIPE_THRESHOLD && currentIndex < reels.length - 1) {
-        setCurrentIndex(prev => prev + 1);
-      } else if (deltaY < -SWIPE_THRESHOLD && currentIndex > 0) {
-        setCurrentIndex(prev => prev - 1);
+      const deltaY = touchStartY.current - touchEndY; // Positive for swipe up (next), negative for swipe down (prev)
+      if (deltaY > SWIPE_THRESHOLD) { // Swipe Up
+        goToNextReel();
+      } else if (deltaY < -SWIPE_THRESHOLD) { // Swipe Down
+        goToPreviousReel();
       }
       touchStartY.current = 0;
     };
@@ -102,7 +101,7 @@ const ReelsViewer: React.FC = () => {
     container.addEventListener('touchend', handleTouchEnd);
 
     return () => {
-      console.log("ReelsViewer: useEffect for event listeners - CLEANUP. Removing event listeners.");
+      // console.log("ReelsViewer: useEffect for event listeners - CLEANUP. Removing event listeners.");
       if (container) {
         container.removeEventListener('wheel', handleScroll);
         window.removeEventListener('keydown', handleKeyDown);
@@ -111,18 +110,13 @@ const ReelsViewer: React.FC = () => {
         container.removeEventListener('touchend', handleTouchEnd);
       }
     };
-  }, [currentIndex, reels.length]);
+  }, [currentIndex, reels.length]); // Dependencies include goToNextReel and goToPreviousReel if they are not stable
 
-  console.log(`ReelsViewer: RENDERING. isLoading: ${isLoading}, Reels count: ${reels.length}, CurrentIndex: ${currentIndex}`);
-  // if (viewportHeight > 0) { // For dynamic height debugging
-  //   console.log(`ReelsViewer: ViewportHeight: ${viewportHeight}px, TranslateY: -${currentIndex * viewportHeight}px`);
-  // }
-
+  // console.log(`ReelsViewer: RENDERING. isLoading: ${isLoading}, Reels count: ${reels.length}, CurrentIndex: ${currentIndex}`);
 
   if (isLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-        {/* Added w-screen to ensure full width for loading screen */}
         <div className="text-center text-white">
           <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <h2 className="text-xl font-bold">Loading Reels...</h2>
@@ -134,7 +128,6 @@ const ReelsViewer: React.FC = () => {
   if (!isLoading && reels.length === 0) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-        {/* Added w-screen here too */}
         <div className="text-center text-white">
           <h2 className="text-2xl font-bold mb-4">No Reels Available</h2>
           <p className="text-lg opacity-75">Ask admin to add some reels!</p>
@@ -146,24 +139,16 @@ const ReelsViewer: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      // --- CSS Class Updates ---
-      className="h-screen w-screen overflow-hidden relative bg-black" 
-      // Ensure w-screen (width: 100vw) is also set for the main container
+      className="h-screen w-screen overflow-hidden relative bg-black"
       style={{
-        // Using 100vh for height. If mobile vh is an issue, dynamic height (viewportHeight in px) is an alternative.
-        // transform: `translateY(-${currentIndex * (viewportHeight > 0 ? viewportHeight : window.innerHeight)}px)`, // Example with dynamic height in pixels
-        transform: `translateY(-${currentIndex * 100}vh)`, // Original vh based transform
+        transform: `translateY(-${currentIndex * 100}vh)`,
         transition: 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
       }}
     >
       {reels.map((reel, index) => (
         <div 
           key={reel.id} 
-          // --- CSS Class Updates for each reel item ---
           className="h-screen w-screen flex items-center justify-center shrink-0"
-          // Ensure each reel item also takes full viewport width and height
-          // shrink-0 is important if the parent is a flex container and items might shrink
-          // style={viewportHeight > 0 ? { height: `${viewportHeight}px`, width: '100vw' } : {}} // For dynamic height
         >
           <ReelCard 
             reel={reel} 
@@ -172,25 +157,50 @@ const ReelsViewer: React.FC = () => {
         </div>
       ))}
       
-      {/* Navigation indicators and Instructions remain the same */}
-      <div className="fixed right-2 top-1/2 transform -translate-y-1/2 flex flex-col gap-2 z-50">
+      {/* Navigation Indicators (Dots on the right) */}
+      <div className="fixed right-2 md:right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-2 z-30">
         {reels.map((_, index) => (
-          <div
+          <button // Changed div to button for better accessibility
             key={`dot-${index}`}
-            className={`w-1 h-8 rounded-full transition-all duration-300 ${
+            onClick={() => setCurrentIndex(index)} // Click on dot to navigate
+            className={`w-1.5 h-6 md:h-8 rounded-full transition-all duration-300 focus:outline-none ${
               index === currentIndex 
-                ? 'bg-white' 
-                : 'bg-white/30'
+                ? 'bg-white scale-110' 
+                : 'bg-white/30 hover:bg-white/60'
             }`}
+            aria-label={`Go to reel ${index + 1}`}
           />
         ))}
       </div>
 
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center z-40">
-        <p className="text-sm opacity-75">
+      {/* Instructions (Bottom center) */}
+      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center z-30 px-4 py-1.5 bg-black/30 rounded-full">
+        <p className="text-xs md:text-sm opacity-80">
           Swipe, scroll, or use ↑↓ keys to navigate
         </p>
       </div>
+
+      {/* --- Previous Reel Button --- */}
+      {currentIndex > 0 && ( // Shudhu prothom reel chara onno shob reel e dekhabe
+        <button
+          onClick={goToPreviousReel}
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 p-2 md:p-3 bg-black/40 text-white rounded-full hover:bg-black/60 transition-colors focus:outline-none backdrop-blur-sm"
+          aria-label="Previous reel"
+        >
+          <ChevronUp size={20} className="md:w-6 md:h-6" />
+        </button>
+      )}
+
+      {/* --- Next Reel Button --- */}
+      {currentIndex < reels.length - 1 && ( // Shudhu shesh reel chara onno shob reel e dekhabe
+        <button
+          onClick={goToNextReel}
+          className="fixed bottom-16 md:bottom-20 left-1/2 transform -translate-x-1/2 z-40 p-2 md:p-3 bg-black/40 text-white rounded-full hover:bg-black/60 transition-colors focus:outline-none backdrop-blur-sm"
+          aria-label="Next reel"
+        >
+          <ChevronDown size={20} className="md:w-6 md:h-6" />
+        </button>
+      )}
     </div>
   );
 };
